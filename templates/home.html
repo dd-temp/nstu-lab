@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Главная</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Добро пожаловать, {{ current_user['username'] }}!</h1>
+        <div>
+            {% if current_user['role'] in ['admin', 'moderator'] %}
+                <a href="/admin"><button>Административная панель</button></a>
+            {% endif %}
+            <a href="/logout"><button>Выход</button></a>
+        </div>
+    </div>
+
+    <p>Курсовая работа 2025. Байконыров АВТ-219</p>
+    <p>Ваша роль:
+        <strong>
+            {% if current_user['role'] == 'admin' %}
+                Администратор
+            {% elif current_user['role'] == 'moderator' %}
+                Модератор
+            {% elif current_user['role'] == 'user' %}
+                Пользователь
+            {% endif %}
+        </strong>
+    </p>
+
+
+    <hr>
+
+    <h2>Новости дня</h2>
+    <ul>
+        <li>📰 Новая административная панель в разработке!</li>
+        <li>🛡️ Добавлена иерархия ролей: admin, moderator, user</li>
+        <li>🧪 Реализован просмотр контента без доступа к админке</li>
+    </ul>
+
+    {% if current_user['role'] == 'admin' %}
+    <hr>
+    <h2>Пароли пользователей</h2>
+    <a href="/passwords"><button>Показать все пароли</button></a>
+    {% endif %}
+</div>
+</body>
+</html>
