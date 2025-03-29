@@ -1,0 +1,21 @@
+services:
+  flask-app:
+    image: python:3.11-slim
+    container_name: flask-admin-panel
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: sh -c "pip install -r requirements.txt && python init_db.py && python app.py"
+    expose:
+      - "50001"
+    environment:
+      - FLASK_SECRET=${FLASK_SECRET}
+    env_file:
+      - .env
+    networks:
+      - services_network
+
+networks:
+  services_network:
+    external: true
+    name: services_network
