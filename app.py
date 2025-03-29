@@ -46,54 +46,63 @@ def admin():
 
     conn = get_db()
     cursor = conn.cursor()
+    error = None
 
     if request.method == 'POST':
         form = request.form
         target_id = form.get('id') or form.get('edit') or form.get('delete')
         target_role = form.get('role') or form.get('new_role')
-        password = form.get('password') or form.get('new_password')
+        password = (form.get('password') or form.get('new_password') or "").strip()
 
-        if current['role'] == 'admin':
-            if 'add' in form:
-                cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                               (form['username'], password, target_role))
+        try:
+            if current['role'] == 'admin':
+                if 'add' in form:
+                    cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                                   (form['username'], password, target_role))
 
-            elif 'edit' in form:
-                if password.strip():
-                    cursor.execute("UPDATE users SET password=?, role=? WHERE id=?",
-                                   (password, target_role, target_id))
-                else:
-                    cursor.execute("UPDATE users SET role=? WHERE id=?", (target_role, target_id))
+                elif 'edit' in form:
+                    if password:
+                        cursor.execute("UPDATE users SET password=?, role=? WHERE id=?",
+                                       (password, target_role, target_id))
+                    else:
+                        cursor.execute("UPDATE users SET role=? WHERE id=?", (target_role, target_id))
 
-            elif 'delete' in form:
-                cursor.execute("DELETE FROM users WHERE id=?", (target_id,))
-
-        elif current['role'] == 'moderator':
-            cursor.execute("SELECT role FROM users WHERE id=?", (target_id,))
-            target = cursor.fetchone()
-            if not target:
-                conn.close()
-                return "Пользователь не найден", 404
-
-            if 'add' in form and target_role == 'user':
-                cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                               (form['username'], password, 'user'))
-
-            elif target['role'] == 'user':
-                if 'edit' in form:
-                    if password.strip():
-                        cursor.execute("UPDATE users SET password=? WHERE id=?", (password, target_id))
                 elif 'delete' in form:
                     cursor.execute("DELETE FROM users WHERE id=?", (target_id,))
-        conn.commit()
 
-    if current['role'] == 'admin':
-        cursor.execute("SELECT * FROM users")
-    elif current['role'] == 'moderator':
-        cursor.execute("SELECT * FROM users")
+            elif current['role'] == 'moderator':
+                if 'add' in form:
+                    if target_role == 'user':
+                        cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                                       (form['username'], password, 'user'))
+
+                elif 'edit' in form:
+                    cursor.execute("SELECT role FROM users WHERE id=?", (target_id,))
+                    target = cursor.fetchone()
+                    if not target:
+                        error = "Пользователь не найден"
+                    elif target['role'] != 'admin' and password:
+                        cursor.execute("UPDATE users SET password=? WHERE id=?", (password, target_id))
+
+                elif 'delete' in form:
+                    cursor.execute("SELECT role FROM users WHERE id=?", (target_id,))
+                    target = cursor.fetchone()
+                    if not target:
+                        error = "Пользователь не найден"
+                    elif target['role'] == 'user':
+                        cursor.execute("DELETE FROM users WHERE id=?", (target_id,))
+            conn.commit()
+
+        except sqlite3.IntegrityError as e:
+            error = "Ошибка: " + str(e).replace("UNIQUE constraint failed: users.username", "пользователь с таким именем уже существует")
+
+        except Exception as e:
+            error = "Неизвестная ошибка: " + str(e)
+
+    cursor.execute("SELECT * FROM users")
     users = cursor.fetchall()
     conn.close()
-    return render_template('admin.html', users=users, current_user=current)
+    return render_template('admin.html', users=users, current_user=current, error=error)
 
 
 @app.route('/logout')

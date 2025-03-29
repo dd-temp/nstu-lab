@@ -49,6 +49,11 @@
     {% endif %}
 
     <h2>Пользователи</h2>
+
+    {% if error %}
+    <p style="color: red; font-weight: bold;">{{ error }}</p>
+    {% endif %}
+
     <table>
         <tr><th>ID</th><th>Имя пользователя</th><th>Роль</th><th>Действия</th></tr>
         {% for user in users %}
@@ -59,10 +64,14 @@
             <td>
                 <form method="post" style="display:inline-block;">
                     <input type="hidden" name="id" value="{{ user.id }}">
+
+                    {% if not (current_user['role'] == 'moderator' and user.role == 'admin') %}
                     <div class="password-wrapper">
-                        <input type="password" name="password" placeholder="Новый пароль (необязательно)">
+                        <input type="password" name="password" placeholder="Новый пароль">
                         <span class="toggle-password" onclick="togglePassword(this)">👁</span>
                     </div>
+                    {% endif %}
+
                     {% if current_user['role'] == 'admin' %}
                     <select name="role">
                         <option value="user" {% if user.role == 'user' %}selected{% endif %}>user</option>
@@ -72,6 +81,7 @@
                     {% else %}
                     <input type="hidden" name="role" value="{{ user.role }}">
                     {% endif %}
+
                     <button name="edit" type="submit">Изменить</button>
                 </form>
 
