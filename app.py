@@ -41,7 +41,7 @@ def admin():
     if 'user' not in session:
         return redirect('/')
     current = session['user']
-    if current ['role'] == 'user':
+    if current['role'] == 'user':
         return "Access denied", 403
 
     conn = get_db()
@@ -49,29 +49,40 @@ def admin():
 
     if request.method == 'POST':
         form = request.form
-        target_id = form.get('id')
-        target_role = form.get('role')
+        target_id = form.get('id') or form.get('edit') or form.get('delete')
+        target_role = form.get('role') or form.get('new_role')
+        password = form.get('password') or form.get('new_password')
 
         if current['role'] == 'admin':
             if 'add' in form:
                 cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                               (form['username'], form['password'], target_role))
+                               (form['username'], password, target_role))
+
             elif 'edit' in form:
-                cursor.execute("UPDATE users SET password=?, role=? WHERE id=?",
-                               (form['password'], target_role, target_id))
+                if password.strip():
+                    cursor.execute("UPDATE users SET password=?, role=? WHERE id=?",
+                                   (password, target_role, target_id))
+                else:
+                    cursor.execute("UPDATE users SET role=? WHERE id=?", (target_role, target_id))
+
             elif 'delete' in form:
                 cursor.execute("DELETE FROM users WHERE id=?", (target_id,))
 
         elif current['role'] == 'moderator':
             cursor.execute("SELECT role FROM users WHERE id=?", (target_id,))
             target = cursor.fetchone()
+            if not target:
+                conn.close()
+                return "Пользователь не найден", 404
+
             if 'add' in form and target_role == 'user':
                 cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                               (form['username'], form['password'], 'user'))
-            elif target and target['role'] == 'user':
+                               (form['username'], password, 'user'))
+
+            elif target['role'] == 'user':
                 if 'edit' in form:
-                    cursor.execute("UPDATE users SET password=? WHERE id=?",
-                                   (form['password'], target_id))
+                    if password.strip():
+                        cursor.execute("UPDATE users SET password=? WHERE id=?", (password, target_id))
                 elif 'delete' in form:
                     cursor.execute("DELETE FROM users WHERE id=?", (target_id,))
         conn.commit()
@@ -79,7 +90,7 @@ def admin():
     if current['role'] == 'admin':
         cursor.execute("SELECT * FROM users")
     elif current['role'] == 'moderator':
-        cursor.execute("SELECT * FROM users WHERE role = 'user'")
+        cursor.execute("SELECT * FROM users")
     users = cursor.fetchall()
     conn.close()
     return render_template('admin.html', users=users, current_user=current)
@@ -104,4 +115,4 @@ def show_passwords():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run('0.0.0.0', port=50001, debug=True)
